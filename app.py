@@ -7,7 +7,10 @@ import aiohttp
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import PlainTextResponse
 from mcp.server import Server
-from mcp.server.fastapi import sse_handler
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
+from mcp.server import Server
+import asyncio, json
 from mcp import types
 
 N8N_URL = os.environ.get("N8N_URL", "").rstrip("/")
