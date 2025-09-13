@@ -21,7 +21,7 @@ HEADERS = {
 app = FastAPI(title="n8n-mcp")
 server = Server("n8n-mcp")
 
-# --- Middleware pour protéger /sse ---
+# --- Middleware pour sécuriser /sse ---
 @app.middleware("http")
 async def bearer_auth(request: Request, call_next):
     if request.url.path == "/sse":
@@ -64,24 +64,37 @@ async def _n8n_delete(path: str):
             return {"ok": True, "status": r.status, "body": txt}
 
 # --- Implémentations Tools ---
-async def list_workflows():
+async def tool_list_workflows(_args=None):
     data = await _n8n_get("/rest/workflows")
     return [types.TextContent(text=json.dumps(data))]
 
-async def create_workflow(workflow: dict):
-    data = await _n8n_post("/rest/workflows", workflow)
+async def tool_create_workflow(args):
+    wf = args.get("workflow")
+    if not wf:
+        return [types.TextContent(text="Erreur: paramètre 'workflow' manquant")]
+    data = await _n8n_post("/rest/workflows", wf)
     return [types.TextContent(text=json.dumps(data))]
 
-async def set_active(workflow_id: str, active: bool = True):
+async def tool_set_active(args):
+    workflow_id = args.get("workflow_id")
+    active = bool(args.get("active", True))
+    if not workflow_id:
+        return [types.TextContent(text="Erreur: 'workflow_id' manquant")]
     data = await _n8n_patch(f"/rest/workflows/{workflow_id}", {"active": active})
     return [types.TextContent(text=json.dumps(data))]
 
-async def delete_workflow(workflow_id: str):
+async def tool_delete_workflow(args):
+    workflow_id = args.get("workflow_id")
+    if not workflow_id:
+        return [types.TextContent(text="Erreur: 'workflow_id' manquant")]
     data = await _n8n_delete(f"/rest/workflows/{workflow_id}")
     return [types.TextContent(text=json.dumps(data))]
 
-async def run_webhook(path: str, payload: dict | None = None):
-    payload = payload or {}
+async def tool_run_webhook(args):
+    path = args.get("path")
+    payload = args.get("payload", {})
+    if not path or not path.startswith("/"):
+        return [types.TextContent(text="Erreur: 'path' invalide")]
     async with aiohttp.ClientSession() as s:
         async with s.post(f"{N8N_URL}{path}", json=payload) as r:
             try:
@@ -90,45 +103,45 @@ async def run_webhook(path: str, payload: dict | None = None):
                 body = await r.text()
             return [types.TextContent(text=json.dumps({"status": r.status, "body": body}))]
 
-# --- Enregistrement des Tools ---
-server.register_tool(
-    "list_workflows",
-    list_workflows,
-    description="Liste tous les workflows n8n."
+# --- Déclaration manuelle des tools ---
+server.add_tool(
+    name="list_workflows",
+    description="Liste les workflows n8n.",
+    handler=tool_list_workflows,
 )
 
-server.register_tool(
-    "create_workflow",
-    create_workflow,
+server.add_tool(
+    name="create_workflow",
     description="Crée un workflow n8n à partir d'un JSON export/import.",
-    input_schema={"type": "object", "properties": {"workflow": {"type": "object"}}, "required": ["workflow"]}
+    handler=tool_create_workflow,
+    input_schema={"type": "object", "properties": {"workflow": {"type": "object"}}, "required": ["workflow"]},
 )
 
-server.register_tool(
-    "set_active",
-    set_active,
-    description="Active/Désactive un workflow par ID.",
+server.add_tool(
+    name="set_active",
+    description="Active/Désactive un workflow.",
+    handler=tool_set_active,
     input_schema={"type": "object", "properties": {
         "workflow_id": {"type": "string"},
         "active": {"type": "boolean"}
-    }, "required": ["workflow_id"]}
+    }, "required": ["workflow_id"]},
 )
 
-server.register_tool(
-    "delete_workflow",
-    delete_workflow,
-    description="Supprime un workflow par ID.",
-    input_schema={"type": "object", "properties": {"workflow_id": {"type": "string"}}, "required": ["workflow_id"]}
+server.add_tool(
+    name="delete_workflow",
+    description="Supprime un workflow.",
+    handler=tool_delete_workflow,
+    input_schema={"type": "object", "properties": {"workflow_id": {"type": "string"}}, "required": ["workflow_id"]},
 )
 
-server.register_tool(
-    "run_webhook",
-    run_webhook,
-    description="Déclenche un workflow par son webhook (ex: /webhook/abc123).",
+server.add_tool(
+    name="run_webhook",
+    description="Déclenche un workflow par webhook.",
+    handler=tool_run_webhook,
     input_schema={"type": "object", "properties": {
         "path": {"type": "string"},
         "payload": {"type": "object"}
-    }, "required": ["path"]}
+    }, "required": ["path"]},
 )
 
 # --- Endpoint SSE pour ChatGPT ---
