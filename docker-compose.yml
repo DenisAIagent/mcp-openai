@@ -1,0 +1,11 @@
+services:
+  mcp-n8n-proxy:
+    build: .
+    environment:
+      N8N_URL: "https://n8n-production-de00.up.railway.app/"   # <-- remplace
+      N8N_API_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2MmZiMDNjZS05MDU5LTRjMzQtYWEwMy1hZjMzZTQ2NmU4ZDkiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzU3NzQ3NTU4LCJleHAiOjE3NjAzMjgwMDB9.UC2-N6wB_VdrI7Pn6lXukm7-6Ky0MN0FAfGlyCRXg-Y"          # Settings > API dans n8n
+      MCP_BEARER: "super-secret-t@ken2025"         # utilisé par ChatGPT (Bearer)
+      PORT: "8080"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
